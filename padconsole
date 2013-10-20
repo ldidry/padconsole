@@ -1,0 +1,498 @@
+#!/usr/bin/perl
+# vim:set sw=4 ts=4 ft=perl expandtab:
+use warnings;
+use strict;
+
+use Getopt::Std;
+use File::Basename;
+
+use Etherpad::API;
+use Term::ReadLine;
+use Config::YAML;
+use URI::Escape;
+use DateTime;
+
+BEGIN {
+    use Exporter ();
+    use vars qw($VERSION);
+    $VERSION     = '0.01';
+}
+
+$Getopt::Std::STANDARD_HELP_VERSION = 1;
+
+sub VERSION_MESSAGE {
+    my ($handle) = @_;
+    print $handle "padconsole v$VERSION\n";
+}
+
+sub HELP_MESSAGE {
+    print <<EOF;
+
+(c) 2013 Luc Didry <luc\@didry.org>
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+Usage   : padconsole [options]
+Options :
+    --help                      prints this message and exit
+    --version                   prints version and exit
+    -e http://pad.example.com   URL of the etherpad instance
+    -k secretPadApiKey          API key for the etherpad instance
+    -u padUserLogin             username for the etherpad instance, if needed
+    -p padUserPassword          password for the etherpad instance
+    -c /path/to/config/file     use a different config file than \$XDG_HOME_DIR/padconsolerc or ~/.config/padconsolerc
+EOF
+}
+
+my %opts;
+
+getopts('e:k:u:p:c:', \%opts);
+
+my $config_file;
+if (defined $opts{c}) {
+    if (-f $opts{c}) {
+        $config_file = $opts{c};
+    } else {
+        print STDERR "ERROR: Unable to find '$opts{c}' configuration file.\n";
+        exit 1;
+    }
+} else {
+    if (defined $ENV{XDG_HOME_DIR}) {
+            $config_file = $ENV{XDG_HOME_DIR}.'/padconsolerc';
+    } else {
+        $config_file = $ENV{HOME}.'/.config/padconsolerc';
+    }
+    if (!-f $config_file) {
+        if (!-d dirname($config_file)) {
+            mkdir dirname($config_file);
+        }
+        open CFILE, '>', $config_file or die "Unable to create $config_file: $!\n";
+        close CFILE;
+    }
+    chmod 0600, $config_file;
+}
+my ($c, $alias, $url, $key, $user, $passwd, %instances);
+if (defined $config_file) {
+    $c = Config::YAML->new(
+        config => $config_file,
+        output => $config_file,
+    );
+
+    if (defined $c->{instances}) {
+        %instances                   = %{$c->{instances}};
+        my @keys                     = keys %instances;
+        @keys                        = sort @keys;
+        $alias                       = shift @keys;
+        my $first                    = $instances{$alias};
+        ($url, $key, $user, $passwd) = ($first->{url}, $first->{key}, $first->{user}, $first->{password});
+    }
+}
+
+if (defined $opts{e} || defined $opts{k} || defined $opts{u} || defined $opts{p}) {
+    if (!defined $opts{e} || $opts{e} eq '1' || !defined $opts{k} || $opts{k} eq '1') {
+        print STDERR 'ERROR: Not enough arguments.', "\n";
+        HELP_MESSAGE();
+        exit 2;
+    }
+
+    ($alias, $url, $key, $user, $passwd) = ($opts{e}, $opts{e}, $opts{k}, $opts{u}, $opts{p});
+
+    $alias =~ s#https?://|/$##g;
+    $url   =~ s#/$##;
+
+    $instances{$alias} = {
+        url    => $url,
+        key    => $key,
+        user   => $user,
+        passwd => $passwd
+    };
+}
+if (!defined $url || !defined $key) {
+    print STDERR 'ERROR: No configuration found and not enough arguments !', "\n";
+    HELP_MESSAGE();
+    exit 3;
+}
+
+my %args = (
+    url => $url,
+    apikey => $key,
+);
+if (defined $user && defined $passwd) {
+    $args{user} = $user;
+    $args{password} = $passwd;
+}
+my $ec = Etherpad::API->new(\%args);
+if (!$ec->check_token()) {
+    print STDERR 'ERROR: Bad credentials. Unable to bind with the etherpad instance.', "\n";
+    exit 4;
+}
+
+print <<EOF;
+Welcome on padconsole.
+Type 'help' to get some help, 'exit' to exit. Easy, isn't it ?
+EOF
+
+my $term = Term::ReadLine->new('padconsole');
+if (my $attr = $term->Attribs) {
+    $attr->{completion_function} = \&_complete_word;
+}
+
+
+my $prompt = $alias.' $ ';
+
+# for autocomplete
+my @words = qw(exit  help      count
+               list  search    delete
+               text  revcount  authors
+               infos writeconf use
+               alist current);
+
+my @commands;
+while (defined($_ = $term->readline($prompt))) {
+    chomp;
+    @commands   = split(' ', $_);
+    my $command = shift @commands || '';
+
+         if ($command eq 'exit') {
+        _exit();
+    } elsif ($command eq 'help') {
+        _help();
+    } elsif ($command eq 'count') {
+        _count();
+    } elsif ($command eq 'list') {
+        _list();
+    } elsif ($command eq 'search') {
+        _search();
+    } elsif ($command eq 'delete') {
+        _delete()
+    } elsif ($command eq 'text') {
+        _text()
+    } elsif ($command eq 'revcount') {
+        _revcount()
+    } elsif ($command eq 'authors') {
+        _authors()
+    } elsif ($command eq 'infos') {
+        _infos()
+    } elsif ($command eq 'writeconf') {
+        _writeconf()
+    } elsif ($command eq 'use') {
+        _use()
+    } elsif ($command eq 'alist') {
+        _alist()
+    } elsif ($command eq 'current') {
+        _current()
+    } else {
+        print 'WARNING: Unknown command', "\n";
+        _help();
+    }
+}
+
+sub _help {
+    print <<EOF
+Available commands:
+  - help                 : print this message
+  - exit                 : exit program
+  - count                : print the number of existing pads
+  - list                 : list all the existing pads (20 items per page)
+  - search <PATTERN>     : print the list of the pads which name matches the pattern (Perl regex) (20 items per page)
+  - delete <pad1> <pad2> : delete the pads pad1 pad2 (have to be separated by space)
+  - text <pad> [rev]     : print the pad content, at the revision [rev] if defined
+  - revcount <pad>       : print the number of revisions of a pad
+  - authors <pad>        : print the name of the differents authors who wrote on the pad
+  - infos <pad>          : print multiple informations about the pad
+  - writeconf            : write the configuration to $config_file
+  - use <alias>          : change connection to the etherpad instance which alias is <alias>
+  - alist                : print all the configured etherpads aliases
+  - current              : print configuration informations about the current etherpad instance
+EOF
+}
+
+sub _current {
+    print 'Alias    : ' , $alias, "\n";
+
+    my $instance = $instances{$alias};
+
+    print 'Url      : ' , $instance->{url}    , "\n";
+    print 'ApiKey   : ' , $instance->{key}    , "\n";
+    print 'User     : ' , $instance->{user}   , "\n" if (defined $instance->{user});
+    print 'Password : ' , $instance->{passwd} , "\n" if (defined $instance->{passwd});
+}
+
+sub _alist {
+    my @keys = keys %instances;
+    print join("\n", sort @keys), "\n";
+}
+
+sub _use {
+    $alias = shift @commands;
+    if (defined $alias) {
+        if (defined $instances{$alias}) {
+            my $instance = $instances{$alias};
+            ($url, $key, $user, $passwd) = ($instance->{url}, $instance->{key}, $instance->{user}, $instance->{password});
+            %args = (
+                url    => $url,
+                apikey => $key,
+            );
+            if (defined $user && defined $passwd) {
+                $args{user}     = $user;
+                $args{password} = $passwd;
+            }
+
+            $ec = Etherpad::API->new(\%args);
+            if (!$ec->check_token()) {
+                print STDERR 'ERROR: Bad credentials. Unable to bind with the etherpad instance.', "\n";
+                exit 5;
+            }
+
+            $prompt = $alias.' $ ';
+        } else {
+            print 'ERROR: Bad instance alias. Unable to get configuration for instance alias ', $alias, "\n";
+        }
+    } else {
+        print 'ERROR: no alias given !', "\n";
+    }
+}
+
+sub _writeconf {
+    $c->{instances} = \%instances;
+    $c->write;
+}
+
+sub _infos {
+    my $pad = shift @commands;
+
+    if (defined $pad) {
+        my $revs = $ec->get_revisions_count($pad);
+        if (defined $revs) {
+            my @authors     = do { my %seen; grep { !$seen{$_}++ } $ec->list_names_of_authors_of_pad($pad) };
+            my $last_edited = $ec->get_last_edited($pad);
+            $last_edited    =~ s/\d{3}$//;
+            my $dt          = DateTime->from_epoch(epoch => $last_edited);
+            $last_edited    = $dt->strftime('%F %T');
+
+            printf 'Pad %s              : '."\n", $pad;
+            printf 'Number of revisions : %s'."\n", $revs;
+            printf 'Authors list        : %s'."\n", join(', ', sort @authors);
+            printf 'Last edition        : %s'."\n", $last_edited;
+            printf 'URL                 : %sp/%s'."\n", $url, uri_escape($pad);
+            printf 'Read only URL       : %sp/%s'."\n", $url, uri_escape($ec->get_read_only_id($pad));
+        }
+    } else {
+        print 'ERROR: no pad given !', "\n";
+    }
+}
+sub _authors {
+    my $pad = shift @commands;
+
+    if (defined $pad) {
+        if (defined $ec->get_revisions_count($pad)) {
+            my @authors = do { my %seen; grep { !$seen{$_}++ } $ec->list_names_of_authors_of_pad($pad) };
+
+            printf 'Pad %s: %d authors'."\n".'  %s'."\n", $pad, scalar @authors, join "\n  ", @authors;
+        }
+    } else {
+        print 'ERROR: no pad given !', "\n";
+    }
+}
+
+sub _revcount {
+    my $pad = shift @commands;
+
+    if (defined $pad) {
+        if (defined $ec->get_revisions_count($pad)) {
+            printf 'Pad %s: %d revisions'."\n", $pad, $ec->get_revisions_count($pad);
+        }
+    } else {
+        print 'ERROR: no pad given !', "\n";
+    }
+}
+
+sub _text {
+    my $pad = shift @commands;
+    my $rev = shift @commands;
+
+    if (defined $pad) {
+        if (defined $rev) {
+            print $ec->get_text($pad, $rev);
+        } else {
+            print $ec->get_text($pad);
+        }
+    } else {
+        print 'ERROR: no pad given !', "\n";
+    }
+}
+
+sub _delete {
+    foreach my $arg (@commands) {
+        if (!defined $ec->get_revisions_count($arg)) {
+            printf 'WARNING: Unable to retrieve the pad %s'."\n", $arg;
+        } else {
+            if ($ec->delete_pad($arg)) {
+                printf 'Pad %s successfully deleted'."\n", $arg;
+            } else {
+                printf 'ERROR: Unable to delete the pad %s'."\n", $arg;
+            }
+        }
+    }
+
+}
+
+sub _search {
+    my $pattern = "@commands";
+    if (defined $pattern) {
+        my @pads = $ec->list_all_pads();
+        my @results = sort grep { $_ =~ m/$pattern/ } @pads;
+
+        _pager(\@results);
+    } else {
+        print 'ERROR: no pattern given !', "\n";
+    }
+}
+
+sub _list {
+    my $pads = $ec->list_all_pads();
+    _pager($pads);
+}
+
+sub _count {
+    my @pads = $ec->list_all_pads();
+    printf 'There is currently %d pads on %s'."\n", scalar @pads, $ec->url();
+}
+
+sub _exit {
+    print "\n", 'Good bye !', "\n";
+    exit 0;
+}
+
+sub _pager {
+    my $r       = shift;
+    my @results = @{$r};
+
+    $_ = 'more';
+    do {
+        chomp;
+        return if ($_ ne 'more');
+        for (my $i = 0; $i < 20; $i++) {
+            last if (scalar @results == 0);
+            print shift @results, "\n";
+            my $rest = scalar @results;
+            printf '%s more pads. Type \'more\' to see the next %d.'."\n", $rest, ($rest >= 20) ? 20 : $rest if ($i == 19 && $rest);
+        }
+        if (scalar @results == 0) {
+            print "\n", 'No more pads.', "\n";
+            return;
+        }
+    } while (<>);
+}
+
+sub _complete_word {
+    my ($text, $line, $start) = @_;
+    return grep(/^$text/, @words);
+}
+
+################################################################################
+# Pod documentation
+
+=head1 NAME
+
+padconsole - manage your etherpad from the console
+
+=head1 SYNOPSIS
+
+padconsole [OPTION]
+
+=head1 DESCRIPTION
+
+Provides a console to manage an etherpad instance. Get infos about pads, delete them, etc.
+
+       --help                      prints a help message and exit
+
+       --version                   prints version and exit
+
+       -e http://pad.example.com   URL of the etherpad instance
+
+       -k secretPadApiKey          API key for the etherpad instance
+
+       -u padUserLogin             username for the etherpad instance, if needed
+
+       -p padUserPassword          password for the etherpad instance
+
+       -c /path/to/config/file     use a different config file than \$XDG_HOME_DIR/padconsolerc or ~/.config/padconsolerc
+
+=head1 COMMANDS
+
+Once the padconsole is launched, you can use this commands:
+
+       help                 : print this message
+
+       exit                 : exit program
+
+       count                : print the number of existing pads
+
+       list                 : list all the existing pads (20 items per page)
+
+       search <PATTERN>     : print the list of the pads which name matches the pattern (Perl regex) (20 items per page)
+
+       delete <pad1> <pad2> : delete the pads pad1 pad2 (have to be separated by space)
+
+       text <pad> [rev]     : print the pad content, at the revision [rev] if defined
+
+       revcount <pad>       : print the number of revisions of a pad
+
+       authors <pad>        : print the name of the differents authors who wrote on the pad
+
+       infos <pad>          : print multiple informations about the pad
+
+       writeconf            : write the configuration to $config_file
+
+       use <alias>          : change connection to the etherpad instance which alias is <alias>
+
+       alist                : print all the configured etherpads aliases
+
+       current              : print configuration informations about the current etherpad instance
+
+=head1 BUGS and SUPPORT
+
+       You can find documentation for this module with the perldoc command.
+
+           perldoc padconsole
+
+       Bugs and feature requests will be tracked at github:
+
+           https://github.com/ldidry/padconsole/issues/
+
+       The latest source code can be browsed and fetched at:
+
+           https://github.com/ldidry/padconsole
+           git clone git://github.com/ldidry/padconsole.git
+
+       You can also look for information at:
+
+           RT: CPAN's request tracker
+           http://rt.cpan.org/NoAuth/Bugs.html?Dist=padconsole
+
+           AnnoCPAN: Annotated CPAN documentation
+           http://annocpan.org/dist/padconsole
+
+           CPAN Ratings
+           http://cpanratings.perl.org/d/padconsole
+
+           Search CPAN
+           http://search.cpan.org/dist/padconsole
+
+=head1 AUTHOR
+
+           Luc DIDRY
+           CPAN ID: LDIDRY
+           ldidry@cpan.org
+           http://www.fiat-tux.fr/
+
+=head1 COPYRIGHT
+
+       This program is free software; you can redistribute it and/or modify it under the same terms as Perl itself.
+
+       The full text of the license can be found in the LICENSE file included with this module.
+
+=head1 SEE ALSO
+
+       L<Etherpad::API>, L<https://github.com/ldidry/etherpad-admin>
