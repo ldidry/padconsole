@@ -451,6 +451,25 @@ Once the padconsole is launched, you can use this commands:
 
        current              : print configuration informations about the current etherpad instance
 
+=head1 CONFIGURATION FILE
+
+You can write it (that a simple YAML file), or launch padconsole with valid etherpad informations (options I<-e>, I<-k> and possibly I<-u> and I<-p>) and then use the I<writeconf> command.
+
+If you want to add instances, you can write them in the configuration file or launch padconsole with the informations and use I<writeconf>, it will push the new instance in the configuration file.
+
+    ---
+    instances:
+      beta:
+        url: http://pad1.example.com
+        key: KLJfdskldJKLjkfds634lnfdsqxdsnjk5
+        passwd: ~
+        user: ~
+      lite:
+        url: http://pad2.example.com
+        key: qSDHlfknsuIH290oitjepz6fqd3jeuzi
+        passwd: ~
+        user: ~
+
 =head1 BUGS and SUPPORT
 
        You can find documentation for this module with the perldoc command.
