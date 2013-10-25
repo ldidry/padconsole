@@ -1,6 +1,7 @@
 package App::padconsole;
-our $VERSION = '0.03';
+our $VERSION = '0.05';
 1;
+
 =head1 NAME
 
 App::padconsole - manage your etherpad from the console

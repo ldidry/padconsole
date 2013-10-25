@@ -1,7 +1,7 @@
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-    'NAME'          => 'padconsole',
+    'NAME'          => 'App::padconsole',
     'VERSION_FROM'  => 'padconsole',
     'AUTHOR'        => 'Luc Didry <luc@didry.org>',
     'ABSTRACT'      => 'A console to manage your etherpad instance',
