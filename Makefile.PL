@@ -9,7 +9,7 @@ WriteMakefile(
     'EXE_FILES'     =>  [ 'padconsole' ],
 
     'PREREQ_PM'     => {
-        'Etherpad::API'  => 0.10,
+        'Etherpad::API'  => 0.11,
         'Term::ReadLine' => 0,
         'Config::YAML' => 0,
         'URI::Escape' => 0,
