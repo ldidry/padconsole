@@ -15,7 +15,7 @@ use DateTime;
 BEGIN {
     use Exporter ();
     use vars qw($VERSION);
-    $VERSION     = '0.04';
+    $VERSION     = '0.05';
 }
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
