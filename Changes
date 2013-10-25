@@ -1,7 +1,12 @@
-Revision history for Perl app padconsole
+Revision history for Perl module App::padconsole
 
-0.03 Mon Oct 21 23:25:52 2013
+0.04 2013-10-25
+
+0.03 2013-10-21
     - Add App::padconsole module to be indexed in CPAN
 
-0.01 Mon Oct 21 01:25:17 2013
+0.02 2013-10-21
+
+0.01 2013-10-20
     - First import, working
+
