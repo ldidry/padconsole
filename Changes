@@ -1,5 +1,10 @@
 Revision history for Perl module App::padconsole
 
+0.05
+    - Changed NAME to App::padconsole, so distname becomes App-console,
+      which is the convention.
+    - Tweaked formatting of this file to conform to CPAN::Changes::Spec
+
 0.04 2013-10-25
 
 0.03 2013-10-21
