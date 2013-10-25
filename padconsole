@@ -467,8 +467,24 @@ If you want to add instances, you can write them in the configuration file or la
       lite:
         url: http://pad2.example.com
         key: qSDHlfknsuIH290oitjepz6fqd3jeuzi
-        passwd: ~
-        user: ~
+        passwd: myuser
+        user: mypasswd
+
+=head1 INSTALLATION
+
+The better way to install it is by CPAN:
+
+    cpan App::padconsole
+
+You can install it manually:
+
+    wget https://github.com/ldidry/padconsole/archive/master.zip -O padconsole.zip
+    unzip padconsole.zip
+    cd padconsole-master
+    perl Makefile.PL
+    make
+    make test
+    make install
 
 =head1 BUGS and SUPPORT
 
