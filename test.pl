@@ -3,7 +3,7 @@
 use warnings;
 use strict;
 
-use Test::More tests => 5;
+use Test::More tests => 6;
 use_ok( 'Etherpad::API' );
 use_ok( 'Term::ReadLine' );
 use_ok( 'Config::YAML' );
