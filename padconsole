@@ -63,19 +63,46 @@ if (defined $opts{c}) {
         exit 1;
     }
 } else {
+    my $old_config;
     if (defined $ENV{XDG_HOME_DIR}) {
-            $config_file = $ENV{XDG_HOME_DIR}.'/padconsolerc';
+        $config_file = $ENV{XDG_HOME_DIR}.'/padconsole/padconsole.conf';
+        $old_config  = $ENV{XDG_HOME_DIR}.'/padconsolerc';
     } else {
-        $config_file = $ENV{HOME}.'/.config/padconsolerc';
+        $config_file = $ENV{HOME}.'/.config/padconsole/padconsole.conf';
+        $old_config  = $ENV{HOME}.'/.config/padconsolerc';
     }
     if (!-f $config_file) {
-        if (!-d dirname($config_file)) {
-            mkdir dirname($config_file);
+        if (-f $old_config) {
+            print <<EOF;
+The default configuration file path has changed.
+Do you want me to move your configuration file to the new place ($config_file)?
+Please be aware the configuration will not be loaded from the old place ($old_config) anymore.
+Type yes if you want me to move the configuration file.
+EOF
+            my $choice = <>;
+            chomp $choice;
+            if ($choice eq 'yes') {
+                if (!-d dirname($config_file)) {
+                    mkdir dirname($config_file);
+                }
+                my $c = Config::YAML->new(
+                    config => $old_config,
+                    output => $config_file,
+                );
+                $c->write;
+                unlink $old_config;
+            } else {
+                $config_file = undef;
+            }
+        } else {
+            if (!-d dirname($config_file)) {
+                mkdir dirname($config_file);
+            }
+            open CFILE, '>', $config_file or die "Unable to create $config_file: $!\n";
+            close CFILE;
         }
-        open CFILE, '>', $config_file or die "Unable to create $config_file: $!\n";
-        close CFILE;
     }
-    chmod 0600, $config_file;
+    chmod 0600, $config_file if (defined $config_file);
 }
 my ($c, $alias, $url, $key, $user, $passwd, %instances);
 if (defined $config_file) {
