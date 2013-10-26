@@ -8,12 +8,15 @@ WriteMakefile(
 
     'EXE_FILES'     =>  [ 'padconsole' ],
 
+    'LICENSE'       => 'perl',
+
     'PREREQ_PM'     => {
         'Etherpad::API'  => 0.11,
         'Term::ReadLine' => 0,
-        'Config::YAML' => 0,
-        'URI::Escape' => 0,
-        'DateTime' => 0,
+        'Config::YAML'   => 0,
+        'URI::Escape'    => 0,
+        'DateTime'       => 0,
+        'Browser::Open'  => 0,
     },
 
     'META_MERGE'    => {
