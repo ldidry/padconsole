@@ -19,7 +19,7 @@ use Browser::Open qw/open_browser_cmd/;
 BEGIN {
     use Exporter ();
     use vars qw($VERSION);
-    $VERSION     = '0.06';
+    $VERSION     = '0.07';
 }
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
