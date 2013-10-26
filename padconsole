@@ -5,6 +5,9 @@ use strict;
 
 use Getopt::Std;
 use File::Basename;
+use IPC::Open3;
+use File::Spec::Functions;
+use File::Path qw/make_path/;
 
 use Etherpad::API;
 use Term::ReadLine;
@@ -12,7 +15,6 @@ use Config::YAML;
 use URI::Escape;
 use DateTime;
 use Browser::Open qw/open_browser_cmd/;
-use IPC::Open3;
 
 BEGIN {
     use Exporter ();
@@ -52,6 +54,9 @@ my %opts;
 getopts('e:k:u:p:c:b:', \%opts);
 
 my $config_file;
+my $old_conf_dir = (defined $ENV{XDG_HOME_DIR}) ? $ENV{XDG_HOME_DIR} : catdir($ENV{HOME}, '.config');
+my $conf_dir     = catdir($old_conf_dir, 'padconsole');
+make_path $conf_dir unless (-d $conf_dir);
 #################
 # Options parsing
 #################
@@ -63,14 +68,8 @@ if (defined $opts{c}) {
         exit 1;
     }
 } else {
-    my $old_config;
-    if (defined $ENV{XDG_HOME_DIR}) {
-        $config_file = $ENV{XDG_HOME_DIR}.'/padconsole/padconsole.conf';
-        $old_config  = $ENV{XDG_HOME_DIR}.'/padconsolerc';
-    } else {
-        $config_file = $ENV{HOME}.'/.config/padconsole/padconsole.conf';
-        $old_config  = $ENV{HOME}.'/.config/padconsolerc';
-    }
+    my $old_config = catfile($old_conf_dir, 'padconsolerc');
+    $config_file   = catfile($conf_dir, 'padconsole.yml');
     if (!-f $config_file) {
         if (-f $old_config) {
             print <<EOF;
@@ -82,9 +81,6 @@ EOF
             my $choice = <>;
             chomp $choice;
             if ($choice eq 'yes') {
-                if (!-d dirname($config_file)) {
-                    mkdir dirname($config_file);
-                }
                 my $c = Config::YAML->new(
                     config => $old_config,
                     output => $config_file,
@@ -95,22 +91,21 @@ EOF
                 $config_file = undef;
             }
         } else {
-            if (!-d dirname($config_file)) {
-                mkdir dirname($config_file);
-            }
-            open CFILE, '>', $config_file or die "Unable to create $config_file: $!\n";
-            close CFILE;
+            open my $cfile, '>', $config_file or die "Unable to create $config_file: $!\n";
+            close $cfile;
         }
     }
     chmod 0600, $config_file if (defined $config_file);
 }
 my ($c, $alias, $url, $key, $user, $passwd, %instances);
+my $history_file = catfile($conf_dir, 'history');
+my @history;
+
 if (defined $config_file) {
     $c = Config::YAML->new(
         config => $config_file,
         output => $config_file,
     );
-
 
     if (defined $c->{instances}) {
         %instances                   = %{$c->{instances}};
@@ -194,6 +189,15 @@ if (my $attr = $term->Attribs) {
     $attr->{completion_function} = \&_complete_word;
 }
 
+if (-f $history_file) {
+    open my $hist, '<', $history_file or die "Unable to open $history_file: $!";
+    while (defined(my $line = <$hist>)) {
+        chomp $line;
+        _addtohistory($line);
+        $term->addhistory($line);
+    }
+    close $hist;
+}
 
 my $prompt = $alias.' $ ';
 
@@ -209,6 +213,7 @@ while (defined($_ = $term->readline($prompt))) {
     chomp;
     @commands   = split(' ', $_);
     my $command = shift @commands || '';
+    _addtohistory($_) unless ($command eq 'exit');
 
          if ($command eq 'exit') {
         _exit();
@@ -245,6 +250,8 @@ while (defined($_ = $term->readline($prompt))) {
         _help();
     }
 }
+print "\n";
+_exit();
 
 sub _help {
     print <<EOF
@@ -440,6 +447,9 @@ sub _count {
 }
 
 sub _exit {
+    open my $hist, '>', $history_file or die "Unable to open $history_file: $!";
+    print $hist join("\n", @history);
+    close $hist;
     print "\n", 'Good bye !', "\n";
     exit 0;
 }
@@ -468,6 +478,14 @@ sub _pager {
 sub _complete_word {
     my ($text, $line, $start) = @_;
     return grep(/^$text/, @words);
+}
+
+sub _addtohistory {
+    my $line = shift;
+    push @history, $line;
+    while (scalar(@history) > 100) {
+        shift @history;
+    }
 }
 
 ################################################################################
