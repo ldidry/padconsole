@@ -9,3 +9,4 @@ use_ok( 'Term::ReadLine' );
 use_ok( 'Config::YAML' );
 use_ok( 'URI::Escape' );
 use_ok( 'DateTime' );
+use_ok( 'Browser::Open' );

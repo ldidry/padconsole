@@ -11,6 +11,8 @@ use Term::ReadLine;
 use Config::YAML;
 use URI::Escape;
 use DateTime;
+use Browser::Open qw/open_browser_cmd/;
+use IPC::Open3;
 
 BEGIN {
     use Exporter ();
@@ -41,14 +43,18 @@ Options :
     -u padUserLogin             username for the etherpad instance, if needed
     -p padUserPassword          password for the etherpad instance
     -c /path/to/config/file     use a different config file than \$XDG_HOME_DIR/padconsolerc or ~/.config/padconsolerc
+    -b x-www-browser            use this browser to open pads or etherpad instance home page
 EOF
 }
 
 my %opts;
 
-getopts('e:k:u:p:c:', \%opts);
+getopts('e:k:u:p:c:b:', \%opts);
 
 my $config_file;
+#################
+# Options parsing
+#################
 if (defined $opts{c}) {
     if (-f $opts{c}) {
         $config_file = $opts{c};
@@ -77,6 +83,7 @@ if (defined $config_file) {
         config => $config_file,
         output => $config_file,
     );
+
 
     if (defined $c->{instances}) {
         %instances                   = %{$c->{instances}};
@@ -107,12 +114,28 @@ if (defined $opts{e} || defined $opts{k} || defined $opts{u} || defined $opts{p}
         passwd => $passwd
     };
 }
+
+# Browser test
+$c->{browser} = $opts{b} if (defined $opts{b});
+if (defined $c->{browser}) {
+    my ($wtr, $rdr, $err);
+    my $pid = open3($wtr, $rdr, $err, 'which', $c->{browser});
+    waitpid( $pid, 0 );
+    my $xbro = $? >> 8;
+    if ($xbro) {
+        printf 'ERROR: specified browser %s not found !'."\n", $c->{browser};
+        exit 7;
+    }
+    $ENV{BROWSER} = $c->{browser};
+}
+
 if (!defined $url || !defined $key) {
     print STDERR 'ERROR: No configuration found and not enough arguments !', "\n";
     HELP_MESSAGE();
     exit 3;
 }
 
+# Etherpad binding args
 my %args = (
     url => $url,
     apikey => $key,
@@ -121,12 +144,19 @@ if (defined $user && defined $passwd) {
     $args{user} = $user;
     $args{password} = $passwd;
 }
+
+#################
+# Initiate instance binding
+#################
 my $ec = Etherpad::API->new(\%args);
 if (!$ec->check_token()) {
-    print STDERR 'ERROR: Bad credentials. Unable to bind with the etherpad instance.', "\n";
+    print STDERR 'ERROR: Unable to bind with the etherpad instance.', "\n";
     exit 4;
 }
 
+#################
+# Create console
+#################
 print <<EOF;
 Welcome on padconsole.
 Type 'help' to get some help, 'exit' to exit. Easy, isn't it ?
@@ -140,12 +170,12 @@ if (my $attr = $term->Attribs) {
 
 my $prompt = $alias.' $ ';
 
-# for autocomplete
+# For autocomplete
 my @words = qw(exit  help      count
                list  search    delete
                text  revcount  authors
                infos writeconf use
-               alist current);
+               alist current   open);
 
 my @commands;
 while (defined($_ = $term->readline($prompt))) {
@@ -181,6 +211,8 @@ while (defined($_ = $term->readline($prompt))) {
         _alist()
     } elsif ($command eq 'current') {
         _current()
+    } elsif ($command eq 'open') {
+        _open()
     } else {
         print 'WARNING: Unknown command', "\n";
         _help();
@@ -204,7 +236,28 @@ Available commands:
   - use <alias>          : change connection to the etherpad instance which alias is <alias>
   - alist                : print all the configured etherpads aliases
   - current              : print configuration informations about the current etherpad instance
+  - open <pad>           : open pad in browser. If no pad is given, open the etherpad instance home page
 EOF
+}
+
+sub _open {
+    my $pad = shift @commands;
+    my $url = $instances{$alias}->{url};
+    if (defined $pad) {
+        if (defined $ec->get_revisions_count($pad)) {
+            my $separator = (substr($url, -1, 1) eq '/' ) ? 'p/' : '/p/';
+            $url .= $separator.$pad;
+        } else {
+            printf 'ERROR: The pad %s doesn\'t exist on %s. Not opening the browser.'."\n", $pad, $alias;
+            return;
+        }
+    }
+    my ($wtr, $rdr, $err);
+    unless (my $pid = open3($wtr, $rdr, $err, open_browser_cmd(), $url)) {
+        undef $term;
+        return;
+    }
+
 }
 
 sub _current {
@@ -240,7 +293,7 @@ sub _use {
 
             $ec = Etherpad::API->new(\%args);
             if (!$ec->check_token()) {
-                print STDERR 'ERROR: Bad credentials. Unable to bind with the etherpad instance.', "\n";
+                print STDERR 'ERROR: Unable to bind with the etherpad instance.', "\n";
                 exit 5;
             }
 
@@ -458,6 +511,7 @@ You can write it (that a simple YAML file), or launch padconsole with valid ethe
 If you want to add instances, you can write them in the configuration file or launch padconsole with the informations and use I<writeconf>, it will push the new instance in the configuration file.
 
     ---
+    browser: x-www-browser
     instances:
       beta:
         url: http://pad1.example.com
