@@ -1,6 +1,9 @@
 Revision history for Perl module App::padconsole
 
-0.05
+0.06 2013-10-26
+    - Fixed #3: open pad or instance home page in browser from padconsole
+
+0.05 2013-10-25
     - Changed NAME to App::padconsole, so distname becomes App-console,
       which is the convention.
     - Tweaked formatting of this file to conform to CPAN::Changes::Spec
