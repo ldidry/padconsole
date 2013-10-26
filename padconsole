@@ -357,12 +357,14 @@ sub _infos {
             my $dt          = DateTime->from_epoch(epoch => $last_edited);
             $last_edited    = $dt->strftime('%F %T');
 
-            printf 'Pad %s              : '."\n", $pad;
-            printf 'Number of revisions : %s'."\n", $revs;
-            printf 'Authors list        : %s'."\n", join(', ', sort @authors);
-            printf 'Last edition        : %s'."\n", $last_edited;
-            printf 'URL                 : %sp/%s'."\n", $url, uri_escape($pad);
-            printf 'Read only URL       : %sp/%s'."\n", $url, uri_escape($ec->get_read_only_id($pad));
+            my $separator = (substr($url, -1, 1) eq '/' ) ? 'p/' : '/p/';
+
+            printf 'Pad %s'."\n", $pad;
+            printf '  Number of revisions : %s'."\n", $revs;
+            printf '  Authors list        : %s'."\n", join(', ', sort @authors);
+            printf '  Last edition        : %s'."\n", $last_edited;
+            printf '  URL                 : %s%s%s'."\n", $url, $separator, uri_escape($pad);
+            printf '  Read only URL       : %s%s%s'."\n", $url, $separator, uri_escape($ec->get_read_only_id($pad));
         }
     } else {
         print 'ERROR: no pad given !', "\n";
