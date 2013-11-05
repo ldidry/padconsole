@@ -1,5 +1,8 @@
 Revision history for Perl module App::padconsole
 
+0.08 2013-11-05
+    - Add pad creation by calling "create <pad>"
+
 0.07 2013-10-26
     - Fixed #5: Make history persistent
     - bug fixes

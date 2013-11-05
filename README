@@ -53,6 +53,10 @@ COMMANDS
 
            current              : print configuration informations about the current etherpad instance
 
+           open <pad>           : open pad in browser. If no pad is given, open the etherpad instance home page
+
+           create <pad>         : create pad <pad>. If it already exists, print a warning
+
 CONFIGURATION FILE
     You can write it (that a simple YAML file), or launch padconsole with
     valid etherpad informations (options *-e*, *-k* and possibly *-u* and
@@ -63,6 +67,7 @@ CONFIGURATION FILE
     will push the new instance in the configuration file.
 
         ---
+        browser: x-www-browser
         instances:
           beta:
             url: http://pad1.example.com

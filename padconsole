@@ -19,7 +19,7 @@ use Browser::Open qw/open_browser_cmd/;
 BEGIN {
     use Exporter ();
     use vars qw($VERSION);
-    $VERSION     = '0.07';
+    $VERSION     = '0.08';
 }
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
@@ -245,6 +245,8 @@ while (defined($_ = $term->readline($prompt))) {
         _current()
     } elsif ($command eq 'open') {
         _open()
+    } elsif ($command eq 'create') {
+        _create()
     } else {
         print 'WARNING: Unknown command', "\n";
         _help();
@@ -271,7 +273,22 @@ Available commands:
   - alist                : print all the configured etherpads aliases
   - current              : print configuration informations about the current etherpad instance
   - open <pad>           : open pad in browser. If no pad is given, open the etherpad instance home page
+  - create <pad>         : create pad <pad>. If it already exists, print a warning
 EOF
+}
+
+sub _create {
+    my $pad = shift @commands;
+    if (!defined $pad || !$pad) {
+        print 'Please provide a pad name', "\n";
+    } else {
+        my $res = $ec->create_pad($pad);
+        if ($res) {
+            print 'Pad created', "\n";
+        } else {
+            print 'ERROR: pad creation unsuccessful !', "\n";
+        }
+    }
 }
 
 sub _open {
@@ -550,6 +567,10 @@ Once the padconsole is launched, you can use this commands:
        alist                : print all the configured etherpads aliases
 
        current              : print configuration informations about the current etherpad instance
+
+       open <pad>           : open pad in browser. If no pad is given, open the etherpad instance home page
+
+       create <pad>         : create pad <pad>. If it already exists, print a warning
 
 =head1 CONFIGURATION FILE
 
