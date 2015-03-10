@@ -1,5 +1,8 @@
 Revision history for Perl module App::padconsole
 
+0.09 2015-03-09
+    - Requests at least Etherpad::API 1.2.10.3 (older versions are buggy)
+
 0.08 2013-11-05
     - Add pad creation by calling "create <pad>"
 

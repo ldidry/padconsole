@@ -1,5 +1,5 @@
 package App::padconsole;
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 1;
 
 =head1 NAME

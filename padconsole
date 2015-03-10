@@ -19,7 +19,7 @@ use Browser::Open qw/open_browser_cmd/;
 BEGIN {
     use Exporter ();
     use vars qw($VERSION);
-    $VERSION     = '0.08';
+    $VERSION     = '0.09';
 }
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
@@ -535,6 +535,8 @@ Provides a console to manage an etherpad instance. Get infos about pads, delete 
        -p padUserPassword          password for the etherpad instance
 
        -c /path/to/config/file     use a different config file than \$XDG_HOME_DIR/padconsolerc or ~/.config/padconsolerc
+
+       -b x-www-browser            use this browser to open pads or etherpad instance home page
 
 =head1 COMMANDS
 
