@@ -1,5 +1,10 @@
 Revision history for Perl module App::padconsole
 
+0.10 2016-11-22
+    - Use Etherpad instead of Etherpad::API (which is deprecated)
+    - Add html method
+    - Fix "Wide character" issue
+
 0.09 2015-03-09
     - Requests at least Etherpad::API 1.2.10.3 (older versions are buggy)
 

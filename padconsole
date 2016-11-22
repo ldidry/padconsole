@@ -9,17 +9,18 @@ use IPC::Open3;
 use File::Spec::Functions;
 use File::Path qw/make_path/;
 
-use Etherpad::API;
+use Etherpad;
 use Term::ReadLine;
 use Config::YAML;
 use URI::Escape;
 use DateTime;
 use Browser::Open qw/open_browser_cmd/;
+binmode STDOUT, ":utf8";
 
 BEGIN {
     use Exporter ();
     use vars qw($VERSION);
-    $VERSION     = '0.09';
+    $VERSION     = '0.10';
 }
 
 $Getopt::Std::STANDARD_HELP_VERSION = 1;
@@ -202,11 +203,12 @@ if (-f $history_file) {
 my $prompt = $alias.' $ ';
 
 # For autocomplete
-my @words = qw(exit  help      count
-               list  search    delete
-               text  revcount  authors
-               infos writeconf use
-               alist current   open);
+my @words = qw(exit    help   count
+               list    search delete
+               text    html   revcount
+               authors infos  writeconf
+               use     alist  current
+               open);
 
 my @commands;
 while (defined($_ = $term->readline($prompt))) {
@@ -229,6 +231,8 @@ while (defined($_ = $term->readline($prompt))) {
         _delete()
     } elsif ($command eq 'text') {
         _text()
+    } elsif ($command eq 'html') {
+        _html()
     } elsif ($command eq 'revcount') {
         _revcount()
     } elsif ($command eq 'authors') {
@@ -265,6 +269,7 @@ Available commands:
   - search <PATTERN>     : print the list of the pads which name matches the pattern (Perl regex) (20 items per page)
   - delete <pad1> <pad2> : delete the pads pad1 pad2 (have to be separated by space)
   - text <pad> [rev]     : print the pad content, at the revision [rev] if defined
+  - html <pad> [rev]     : print the pad HTML export, at the revision [rev] if defined
   - revcount <pad>       : print the number of revisions of a pad
   - authors <pad>        : print the name of the differents authors who wrote on the pad
   - infos <pad>          : print multiple informations about the pad
@@ -428,6 +433,21 @@ sub _text {
     }
 }
 
+sub _html {
+    my $pad = shift @commands;
+    my $rev = shift @commands;
+
+    if (defined $pad) {
+        if (defined $rev) {
+            print $ec->get_html($pad, $rev);
+        } else {
+            print $ec->get_html($pad);
+        }
+    } else {
+        print 'ERROR: no pad given !', "\n";
+    }
+}
+
 sub _delete {
     foreach my $arg (@commands) {
         if (!defined $ec->get_revisions_count($arg)) {
@@ -556,6 +576,8 @@ Once the padconsole is launched, you can use this commands:
 
        text <pad> [rev]     : print the pad content, at the revision [rev] if defined
 
+       html <pad> [rev]     : print the pad HTML export, at the revision [rev] if defined
+
        revcount <pad>       : print the number of revisions of a pad
 
        authors <pad>        : print the name of the differents authors who wrote on the pad
@@ -602,7 +624,7 @@ The better way to install it is by CPAN:
 
 You can install it manually:
 
-    wget https://github.com/ldidry/padconsole/archive/master.zip -O padconsole.zip
+    wget "https://framagit.org/luc/padconsole/repository/archive.zip?ref=master" -O padconsole.zip
     unzip padconsole.zip
     cd padconsole-master
     perl Makefile.PL
@@ -618,12 +640,12 @@ You can install it manually:
 
        Bugs and feature requests will be tracked at github:
 
-           https://github.com/ldidry/padconsole/issues/
+           https://framagit.org/luc/padconsole/issues/
 
        The latest source code can be browsed and fetched at:
 
-           https://github.com/ldidry/padconsole
-           git clone git://github.com/ldidry/padconsole.git
+           https://framagit.org/luc/padconsole
+           git clone https://framagit.org/luc/padconsole.git
 
        You can also look for information at:
 
@@ -644,7 +666,7 @@ You can install it manually:
            Luc DIDRY
            CPAN ID: LDIDRY
            ldidry@cpan.org
-           http://www.fiat-tux.fr/
+           https://fiat-tux.fr/
 
 =head1 COPYRIGHT
 
@@ -654,4 +676,4 @@ You can install it manually:
 
 =head1 SEE ALSO
 
-       L<Etherpad::API>, L<https://github.com/ldidry/etherpad-admin>
+       L<Etherpad>, L<https://framagit.org/luc/etherpad-admin>

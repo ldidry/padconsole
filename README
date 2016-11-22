@@ -22,6 +22,8 @@ DESCRIPTION
 
            -c /path/to/config/file     use a different config file than \$XDG_HOME_DIR/padconsolerc or ~/.config/padconsolerc
 
+           -b x-www-browser            use this browser to open pads or etherpad instance home page
+
 COMMANDS
     Once the padconsole is launched, you can use this commands:
 
@@ -38,6 +40,8 @@ COMMANDS
            delete <pad1> <pad2> : delete the pads pad1 pad2 (have to be separated by space)
 
            text <pad> [rev]     : print the pad content, at the revision [rev] if defined
+
+           html <pad> [rev]     : print the pad HTML export, at the revision [rev] if defined
 
            revcount <pad>       : print the number of revisions of a pad
 
