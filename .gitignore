@@ -1,3 +1,6 @@
 *swp
+blib/*
 Makefile.old
+Makefile
+MYMETA.*
 App-padconsole*.tar.gz
