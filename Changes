@@ -1,5 +1,8 @@
 Revision history for Perl module App::padconsole
 
+0.13 2018-12-17
+	- Add text_to_file and html_to_file commands
+
 0.12 2018-12-17
 	- Use latest version of Etherpad module
 
