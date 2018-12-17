@@ -3,4 +3,5 @@ blib/*
 Makefile.old
 Makefile
 MYMETA.*
-App-padconsole*.tar.gz
+App-padconsole-*
+pm_to_blib
